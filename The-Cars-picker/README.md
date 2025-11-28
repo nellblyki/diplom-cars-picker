@@ -1,16 +1,140 @@
-# React + Vite
+## The Cars Picker — MVP агрегатор объявлений
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Идея:** пользователь описывает «человеческим» текстом, какую машину хочет (например:  
+«хочу комфортную, большую семейную машину с большим багажником и экономичную до 2 млн»).  
+Backend парсит запрос, превращает в фильтры и подбирает подходящие объявления из каталога.
 
-Currently, two official plugins are available:
+> Это учебный MVP: вместо настоящих API Авито/Дром/Авто.ру используется моковый JSON.  
+> Цель — показать архитектуру, REST API и фронт на React + Tailwind + React Router.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+---
 
-## React Compiler
+### Функциональность
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Простая NLP‑обработки текста: `POST /api/nlp/parse`.
+- Поиск по каталогу: `POST /api/cars/search`, `GET /api/cars`, `GET /api/cars/:id`.
+- Пользовательская регистрация/логин: `POST /api/auth/register`, `POST /api/auth/login`.
+- Избранные автомобили: `GET /api/favorites`, `POST /api/favorites` (toggle).
+- Фронтенд:
+  - Главная страница с текстовым запросом и карточками результатов.
+  - Каталог и страница детали объявления.
+  - Избранное (только для авторизованных).
+  - Страницы регистрации и входа.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Технологии
+
+- **Frontend:** React 19, React Router v7, Tailwind CSS (через `@tailwindcss/vite`), контекст авторизации.
+- **Backend:** Node.js + Express + CORS, мок‑данные `server/mock-cars.js`.
+- **Dev tooling:** Vite, ESLint, concurrently (`npm run dev:full` поднимает фронт и бэкенд).
+
+---
+
+### Структура
+
+```
+The-Cars-picker/
+├─ server/
+│  ├─ index.js        # Express REST API
+│  └─ mock-cars.js    # Список объявлений
+├─ src/
+│  ├─ App.jsx         # Маршруты + Layout
+│  ├─ main.jsx        # Входная точка, BrowserRouter + AuthProvider
+│  └─ modules/
+│     ├─ auth/        # AuthContext, LoginPage, RegisterPage
+│     ├─ home/        # HomePage с текстовым поиском
+│     ├─ catalog/     # CatalogPage, CarDetailsPage
+│     └─ favorites/   # FavoritesPage (PrivateRoute)
+├─ package.json
+└─ README.md
+```
+
+---
+
+### Запуск
+
+```bash
+# 1. Установка зависимостей
+npm install
+
+# 2. Запуск backend (порт 4000)
+npm run server
+
+# 3. Отдельно фронтенд (порт ~5173)
+npm run dev
+
+# или всё вместе (backend + frontend в двух процессах)
+npm run dev:full
+```
+
+> Убедись, что backend действительно работает: `http://localhost:4000/api/cars`
+> должен вернуть JSON со списком машин.
+
+---
+
+### REST API (MVP)
+
+| Method | Endpoint             | Описание                                   |
+|--------|---------------------|---------------------------------------------|
+| POST   | `/api/nlp/parse`    | Разбор текстового запроса в фильтры         |
+| POST   | `/api/cars/search`  | Поиск по каталогу с учётом фильтров         |
+| GET    | `/api/cars`         | Полный каталог (мок‑данные)                 |
+| GET    | `/api/cars/:id`     | Детали объявления                           |
+| POST   | `/api/auth/register`| Простая регистрация, возвращает token+user  |
+| POST   | `/api/auth/login`   | Вход, возвращает token+user                 |
+| GET    | `/api/favorites`    | Список избранных (требует Authorization)    |
+| POST   | `/api/favorites`    | Toggle избранного (требует Authorization)   |
+
+**Авторизация:** токен из login/register хранится в `localStorage` и передаётся в
+`Authorization: Bearer <token>`.
+
+---
+
+### Пример: NLP → 검색 → результат
+
+```http
+POST /api/nlp/parse
+{
+  "query": "комфортный семейный внедорожник до 2 млн"
+}
+```
+
+Ответ:
+
+```json
+{
+  "filters": {
+    "price_max": 2000000,
+    "body_type": ["SUV", "crossover"],
+    "tags": ["comfort", "family"]
+  }
+}
+```
+
+Затем фронт сразу делает:
+
+```http
+POST /api/cars/search
+{
+  "filters": {
+    "price_max": 2000000,
+    "body_type": ["SUV", "crossover"],
+    "tags": ["comfort", "family"]
+  }
+}
+```
+
+И получает список подходящих объявлений.
+
+---
+
+### Ограничения MVP
+
+- Нет реальной интеграции с площадками (данные статичны).
+- Сессии и избранное хранятся в памяти процесса Node.js (при перезапуске всё пропадает).
+- Пароли не хэшируются (не для продакшна).
+
+Несмотря на ограничения, проект демонстрирует: UX поиска «простыми словами», REST API,
+авторизацию, работу с избранным и Tailwind‑интерфейс. При желании можно подключить
+реальные источники данных и базу, оставив существующий фронт и контракты API. 
