@@ -7,36 +7,36 @@ const STORAGE_KEY = 'cars_picker_auth';
 function loadStoredAuth() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { token: null, user: null };
-    return JSON.parse(raw);
+    if (!raw) return { user: null };
+    const parsed = JSON.parse(raw);
+    return { user: parsed.user || null };
   } catch {
-    return { token: null, user: null };
+    return { user: null };
   }
 }
 
 export function AuthProvider({ children }) {
-  const [{ token, user }, setAuth] = useState(() => loadStoredAuth());
+  const [{ user }, setAuth] = useState(() => loadStoredAuth());
 
   useEffect(() => {
-    if (!token) {
+    if (!user) {
       localStorage.removeItem(STORAGE_KEY);
       return;
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ token, user }));
-  }, [token, user]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ user }));
+  }, [user]);
 
-  const login = (nextToken, nextUser) => {
-    setAuth({ token: nextToken, user: nextUser });
+  const login = (nextUser) => {
+    setAuth({ user: nextUser });
   };
 
   const logout = () => {
-    setAuth({ token: null, user: null });
+    setAuth({ user: null });
   };
 
   const value = {
-    token,
     user,
-    isAuthenticated: Boolean(token),
+    isAuthenticated: Boolean(user),
     login,
     logout,
   };
