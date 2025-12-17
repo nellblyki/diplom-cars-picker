@@ -61,7 +61,7 @@ GET	/api/favorites	Список избранных (требует Authorization
 POST	/api/favorites	Toggle избранного (требует Authorization)
 Авторизация: токен из login/register хранится в localStorage и передаётся в Authorization: Bearer <token>.
 
-Пример: NLP → 검색 → результат
+Пример: NLP → результат
 POST /api/nlp/parse
 {
   "query": "комфортный семейный внедорожник до 2 млн"
